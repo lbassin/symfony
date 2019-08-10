@@ -54,7 +54,7 @@ trait FilesystemTrait
      */
     protected function doFetch(array $ids)
     {
-        $values = array();
+        $values = [];
         $now = time();
 
         foreach ($ids as $id) {
@@ -81,17 +81,17 @@ trait FilesystemTrait
     /**
      * {@inheritdoc}
      */
-    protected function doHave($id)
+    protected function doHave(string $id)
     {
         $file = $this->getFile($id);
 
-        return file_exists($file) && (@filemtime($file) > time() || $this->doFetch(array($id)));
+        return file_exists($file) && (@filemtime($file) > time() || $this->doFetch([$id]));
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function doSave(array $values, $lifetime)
+    protected function doSave(array $values, int $lifetime)
     {
         $expiresAt = $lifetime ? (time() + $lifetime) : 0;
         $values = $this->marshaller->marshall($values, $failed);
@@ -107,5 +107,18 @@ trait FilesystemTrait
         }
 
         return $failed;
+    }
+
+    private function getFileKey(string $file): string
+    {
+        if (!$h = @fopen($file, 'rb')) {
+            return '';
+        }
+
+        fgets($h); // expiry
+        $encodedKey = fgets($h);
+        fclose($h);
+
+        return rawurldecode(rtrim($encodedKey));
     }
 }

@@ -16,9 +16,9 @@ namespace Symfony\Component\HttpKernel\CacheClearer;
  */
 class Psr6CacheClearer implements CacheClearerInterface
 {
-    private $pools = array();
+    private $pools = [];
 
-    public function __construct(array $pools = array())
+    public function __construct(array $pools = [])
     {
         $this->pools = $pools;
     }
@@ -49,7 +49,7 @@ class Psr6CacheClearer implements CacheClearerInterface
     /**
      * {@inheritdoc}
      */
-    public function clear($cacheDir)
+    public function clear(string $cacheDir)
     {
         foreach ($this->pools as $pool) {
             $pool->clear();

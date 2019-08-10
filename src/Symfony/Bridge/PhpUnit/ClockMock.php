@@ -67,7 +67,7 @@ class ClockMock
             return self::$now;
         }
 
-        return sprintf('%0.6f %d', self::$now - (int) self::$now, (int) self::$now);
+        return sprintf('%0.6f00 %d', self::$now - (int) self::$now, (int) self::$now);
     }
 
     public static function date($format, $timestamp = null)
@@ -77,6 +77,15 @@ class ClockMock
         }
 
         return \date($format, $timestamp);
+    }
+
+    public static function gmdate($format, $timestamp = null)
+    {
+        if (null === $timestamp) {
+            $timestamp = self::time();
+        }
+
+        return \gmdate($format, $timestamp);
     }
 
     public static function register($class)
@@ -122,6 +131,10 @@ function date(\$format, \$timestamp = null)
     return \\$self::date(\$format, \$timestamp);
 }
 
+function gmdate(\$format, \$timestamp = null)
+{
+    return \\$self::gmdate(\$format, \$timestamp);
+}
 EOPHP
             );
         }

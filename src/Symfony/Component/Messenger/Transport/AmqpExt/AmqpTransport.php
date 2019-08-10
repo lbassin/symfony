@@ -12,14 +12,16 @@
 namespace Symfony\Component\Messenger\Transport\AmqpExt;
 
 use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\Transport\Serialization\Serializer;
+use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
+use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
+use Symfony\Component\Messenger\Transport\SetupableTransportInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
  * @author Nicolas Grekas <p@tchwork.com>
  */
-class AmqpTransport implements TransportInterface
+class AmqpTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface
 {
     private $serializer;
     private $connection;
@@ -29,39 +31,63 @@ class AmqpTransport implements TransportInterface
     public function __construct(Connection $connection, SerializerInterface $serializer = null)
     {
         $this->connection = $connection;
-        $this->serializer = $serializer ?? Serializer::create();
+        $this->serializer = $serializer ?? new PhpSerializer();
     }
 
     /**
      * {@inheritdoc}
      */
-    public function receive(callable $handler): void
+    public function get(): iterable
     {
-        ($this->receiver ?? $this->getReceiver())->receive($handler);
+        return ($this->receiver ?? $this->getReceiver())->get();
     }
 
     /**
      * {@inheritdoc}
      */
-    public function stop(): void
+    public function ack(Envelope $envelope): void
     {
-        ($this->receiver ?? $this->getReceiver())->stop();
+        ($this->receiver ?? $this->getReceiver())->ack($envelope);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function send(Envelope $envelope): void
+    public function reject(Envelope $envelope): void
     {
-        ($this->sender ?? $this->getSender())->send($envelope);
+        ($this->receiver ?? $this->getReceiver())->reject($envelope);
     }
 
-    private function getReceiver()
+    /**
+     * {@inheritdoc}
+     */
+    public function send(Envelope $envelope): Envelope
+    {
+        return ($this->sender ?? $this->getSender())->send($envelope);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setup(): void
+    {
+        $this->connection->setup();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getMessageCount(): int
+    {
+        return ($this->receiver ?? $this->getReceiver())->getMessageCount();
+    }
+
+    private function getReceiver(): AmqpReceiver
     {
         return $this->receiver = new AmqpReceiver($this->connection, $this->serializer);
     }
 
-    private function getSender()
+    private function getSender(): AmqpSender
     {
         return $this->sender = new AmqpSender($this->connection, $this->serializer);
     }

@@ -11,8 +11,7 @@
 
 namespace Symfony\Bundle\FrameworkBundle\Console\Descriptor;
 
-use phpDocumentor\Reflection\DocBlockFactory;
-use phpDocumentor\Reflection\DocBlockFactoryInterface;
+use Symfony\Component\Config\Resource\ClassExistenceResource;
 use Symfony\Component\Console\Descriptor\DescriptorInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\Alias;
@@ -39,7 +38,7 @@ abstract class Descriptor implements DescriptorInterface
     /**
      * {@inheritdoc}
      */
-    public function describe(OutputInterface $output, $object, array $options = array())
+    public function describe(OutputInterface $output, $object, array $options = [])
     {
         $this->output = $output;
 
@@ -52,6 +51,9 @@ abstract class Descriptor implements DescriptorInterface
                 break;
             case $object instanceof ParameterBag:
                 $this->describeContainerParameters($object, $options);
+                break;
+            case $object instanceof ContainerBuilder && !empty($options['env-vars']):
+                $this->describeContainerEnvVars($this->getContainerEnvVars($object), $options);
                 break;
             case $object instanceof ContainerBuilder && isset($options['group_by']) && 'tags' === $options['group_by']:
                 $this->describeContainerTags($object, $options);
@@ -94,11 +96,8 @@ abstract class Descriptor implements DescriptorInterface
 
     /**
      * Writes content to output.
-     *
-     * @param string $content
-     * @param bool   $decorated
      */
-    protected function write($content, $decorated = false)
+    protected function write(string $content, bool $decorated = false)
     {
         $this->output->write($content, false, $decorated ? OutputInterface::OUTPUT_NORMAL : OutputInterface::OUTPUT_RAW);
     }
@@ -106,22 +105,22 @@ abstract class Descriptor implements DescriptorInterface
     /**
      * Describes an InputArgument instance.
      */
-    abstract protected function describeRouteCollection(RouteCollection $routes, array $options = array());
+    abstract protected function describeRouteCollection(RouteCollection $routes, array $options = []);
 
     /**
      * Describes an InputOption instance.
      */
-    abstract protected function describeRoute(Route $route, array $options = array());
+    abstract protected function describeRoute(Route $route, array $options = []);
 
     /**
      * Describes container parameters.
      */
-    abstract protected function describeContainerParameters(ParameterBag $parameters, array $options = array());
+    abstract protected function describeContainerParameters(ParameterBag $parameters, array $options = []);
 
     /**
      * Describes container tags.
      */
-    abstract protected function describeContainerTags(ContainerBuilder $builder, array $options = array());
+    abstract protected function describeContainerTags(ContainerBuilder $builder, array $options = []);
 
     /**
      * Describes a container service by its name.
@@ -130,10 +129,8 @@ abstract class Descriptor implements DescriptorInterface
      * * name: name of described service
      *
      * @param Definition|Alias|object $service
-     * @param array                   $options
-     * @param ContainerBuilder|null   $builder
      */
-    abstract protected function describeContainerService($service, array $options = array(), ContainerBuilder $builder = null);
+    abstract protected function describeContainerService($service, array $options = [], ContainerBuilder $builder = null);
 
     /**
      * Describes container services.
@@ -141,22 +138,27 @@ abstract class Descriptor implements DescriptorInterface
      * Common options are:
      * * tag: filters described services by given tag
      */
-    abstract protected function describeContainerServices(ContainerBuilder $builder, array $options = array());
+    abstract protected function describeContainerServices(ContainerBuilder $builder, array $options = []);
 
     /**
      * Describes a service definition.
      */
-    abstract protected function describeContainerDefinition(Definition $definition, array $options = array());
+    abstract protected function describeContainerDefinition(Definition $definition, array $options = []);
 
     /**
      * Describes a service alias.
      */
-    abstract protected function describeContainerAlias(Alias $alias, array $options = array(), ContainerBuilder $builder = null);
+    abstract protected function describeContainerAlias(Alias $alias, array $options = [], ContainerBuilder $builder = null);
 
     /**
      * Describes a container parameter.
      */
-    abstract protected function describeContainerParameter($parameter, array $options = array());
+    abstract protected function describeContainerParameter($parameter, array $options = []);
+
+    /**
+     * Describes container environment variables.
+     */
+    abstract protected function describeContainerEnvVars(array $envs, array $options = []);
 
     /**
      * Describes event dispatcher listeners.
@@ -164,15 +166,14 @@ abstract class Descriptor implements DescriptorInterface
      * Common options are:
      * * name: name of listened event
      */
-    abstract protected function describeEventDispatcherListeners(EventDispatcherInterface $eventDispatcher, array $options = array());
+    abstract protected function describeEventDispatcherListeners(EventDispatcherInterface $eventDispatcher, array $options = []);
 
     /**
      * Describes a callable.
      *
      * @param callable $callable
-     * @param array    $options
      */
-    abstract protected function describeCallable($callable, array $options = array());
+    abstract protected function describeCallable($callable, array $options = []);
 
     /**
      * Formats a value as string.
@@ -217,18 +218,15 @@ abstract class Descriptor implements DescriptorInterface
     }
 
     /**
-     * @param ContainerBuilder $builder
-     * @param string           $serviceId
-     *
      * @return mixed
      */
-    protected function resolveServiceDefinition(ContainerBuilder $builder, $serviceId)
+    protected function resolveServiceDefinition(ContainerBuilder $builder, string $serviceId)
     {
         if ($builder->hasDefinition($serviceId)) {
             return $builder->getDefinition($serviceId);
         }
 
-        // Some service IDs don't have a Definition, they're simply an Alias
+        // Some service IDs don't have a Definition, they're aliases
         if ($builder->hasAlias($serviceId)) {
             return $builder->getAlias($serviceId);
         }
@@ -242,14 +240,11 @@ abstract class Descriptor implements DescriptorInterface
     }
 
     /**
-     * @param ContainerBuilder $builder
-     * @param bool             $showHidden
-     *
      * @return array
      */
-    protected function findDefinitionsByTag(ContainerBuilder $builder, $showHidden)
+    protected function findDefinitionsByTag(ContainerBuilder $builder, bool $showHidden)
     {
-        $definitions = array();
+        $definitions = [];
         $tags = $builder->findTags();
         asort($tags);
 
@@ -262,7 +257,7 @@ abstract class Descriptor implements DescriptorInterface
                 }
 
                 if (!isset($definitions[$tag])) {
-                    $definitions[$tag] = array();
+                    $definitions[$tag] = [];
                 }
 
                 $definitions[$tag][$serviceId] = $definition;
@@ -289,26 +284,78 @@ abstract class Descriptor implements DescriptorInterface
 
     /**
      * Gets class description from a docblock.
-     *
-     * @param string $class
-     *
-     * @return string
      */
-    protected function getClassDescription($class)
+    public static function getClassDescription(string $class, string &$resolvedClass = null): string
     {
-        if (!interface_exists(DocBlockFactoryInterface::class)) {
-            return '';
-        }
-
+        $resolvedClass = $class;
         try {
-            $reflectionProperty = new \ReflectionClass($class);
+            $resource = new ClassExistenceResource($class, false);
 
-            return DocBlockFactory::createInstance()
-                ->create($reflectionProperty->getDocComment())
-                ->getSummary();
+            // isFresh() will explode ONLY if a parent class/trait does not exist
+            $resource->isFresh(0);
+
+            $r = new \ReflectionClass($class);
+            $resolvedClass = $r->name;
+
+            if ($docComment = $r->getDocComment()) {
+                $docComment = preg_split('#\n\s*\*\s*[\n@]#', substr($docComment, 3, -2), 2)[0];
+
+                return trim(preg_replace('#\s*\n\s*\*\s*#', ' ', $docComment));
+            }
         } catch (\ReflectionException $e) {
         }
 
         return '';
+    }
+
+    private function getContainerEnvVars(ContainerBuilder $container): array
+    {
+        if (!$container->hasParameter('debug.container.dump')) {
+            return [];
+        }
+
+        if (!is_file($container->getParameter('debug.container.dump'))) {
+            return [];
+        }
+
+        $file = file_get_contents($container->getParameter('debug.container.dump'));
+        preg_match_all('{%env\(((?:\w++:)*+\w++)\)%}', $file, $envVars);
+        $envVars = array_unique($envVars[1]);
+
+        $bag = $container->getParameterBag();
+        $getDefaultParameter = function (string $name) {
+            return parent::get($name);
+        };
+        $getDefaultParameter = $getDefaultParameter->bindTo($bag, \get_class($bag));
+
+        $getEnvReflection = new \ReflectionMethod($container, 'getEnv');
+        $getEnvReflection->setAccessible(true);
+
+        $envs = [];
+
+        foreach ($envVars as $env) {
+            $processor = 'string';
+            if (false !== $i = strrpos($name = $env, ':')) {
+                $name = substr($env, $i + 1);
+                $processor = substr($env, 0, $i);
+            }
+            $defaultValue = ($hasDefault = $container->hasParameter("env($name)")) ? $getDefaultParameter("env($name)") : null;
+            if (false === ($runtimeValue = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name))) {
+                $runtimeValue = null;
+            }
+            $processedValue = ($hasRuntime = null !== $runtimeValue) || $hasDefault ? $getEnvReflection->invoke($container, $env) : null;
+            $envs["$name$processor"] = [
+                'name' => $name,
+                'processor' => $processor,
+                'default_available' => $hasDefault,
+                'default_value' => $defaultValue,
+                'runtime_available' => $hasRuntime,
+                'runtime_value' => $runtimeValue,
+                'processed_value' => $processedValue,
+            ];
+        }
+        ksort($envs);
+
+        return array_values($envs);
     }
 }

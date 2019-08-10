@@ -16,10 +16,10 @@ use Symfony\Component\Form\Guess\Guess;
 
 class FormTypeGuesserChain implements FormTypeGuesserInterface
 {
-    private $guessers = array();
+    private $guessers = [];
 
     /**
-     * @param FormTypeGuesserInterface[] $guessers Guessers as instances of FormTypeGuesserInterface
+     * @param FormTypeGuesserInterface[] $guessers
      *
      * @throws UnexpectedTypeException if any guesser does not implement FormTypeGuesserInterface
      */
@@ -84,12 +84,10 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
      *
      * @param \Closure $closure The closure to execute. Accepts a guesser
      *                          as argument and should return a Guess instance
-     *
-     * @return Guess|null The guess with the highest confidence
      */
-    private function guess(\Closure $closure)
+    private function guess(\Closure $closure): ?Guess
     {
-        $guesses = array();
+        $guesses = [];
 
         foreach ($this->guessers as $guesser) {
             if ($guess = $closure($guesser)) {

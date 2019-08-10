@@ -27,25 +27,22 @@ class CacheClearCommandTest extends TestCase
     private $kernel;
     /** @var Filesystem */
     private $fs;
-    private $rootDir;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->fs = new Filesystem();
         $this->kernel = new TestAppKernel('test', true);
-        $this->rootDir = sys_get_temp_dir().\DIRECTORY_SEPARATOR.uniqid('sf2_cache_', true);
-        $this->kernel->setRootDir($this->rootDir);
-        $this->fs->mkdir($this->rootDir);
+        $this->fs->mkdir($this->kernel->getProjectDir());
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
-        $this->fs->remove($this->rootDir);
+        $this->fs->remove($this->kernel->getProjectDir());
     }
 
     public function testCacheIsFreshAfterCacheClearedWithWarmup()
     {
-        $input = new ArrayInput(array('cache:clear'));
+        $input = new ArrayInput(['cache:clear']);
         $application = new Application($this->kernel);
         $application->setCatchExceptions(false);
 
@@ -54,7 +51,7 @@ class CacheClearCommandTest extends TestCase
         // Ensure that all *.meta files are fresh
         $finder = new Finder();
         $metaFiles = $finder->files()->in($this->kernel->getCacheDir())->name('*.php.meta');
-        // simply check that cache is warmed up
+        // check that cache is warmed up
         $this->assertNotEmpty($metaFiles);
         $configCacheFactory = new ConfigCacheFactory(true);
 

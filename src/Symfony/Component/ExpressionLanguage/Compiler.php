@@ -78,11 +78,9 @@ class Compiler implements ResetInterface
     /**
      * Adds a raw string to the compiled code.
      *
-     * @param string $string The string
-     *
      * @return $this
      */
-    public function raw($string)
+    public function raw(string $string)
     {
         $this->source .= $string;
 
@@ -92,11 +90,9 @@ class Compiler implements ResetInterface
     /**
      * Adds a quoted string to the compiled code.
      *
-     * @param string $value The string
-     *
      * @return $this
      */
-    public function string($value)
+    public function string(string $value)
     {
         $this->source .= sprintf('"%s"', addcslashes($value, "\0\t\"\$\\"));
 
@@ -127,7 +123,7 @@ class Compiler implements ResetInterface
         } elseif (\is_bool($value)) {
             $this->raw($value ? 'true' : 'false');
         } elseif (\is_array($value)) {
-            $this->raw('array(');
+            $this->raw('[');
             $first = true;
             foreach ($value as $key => $value) {
                 if (!$first) {
@@ -138,7 +134,7 @@ class Compiler implements ResetInterface
                 $this->raw(' => ');
                 $this->repr($value);
             }
-            $this->raw(')');
+            $this->raw(']');
         } else {
             $this->string($value);
         }

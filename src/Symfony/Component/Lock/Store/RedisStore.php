@@ -11,20 +11,23 @@
 
 namespace Symfony\Component\Lock\Store;
 
+use Symfony\Component\Cache\Traits\RedisClusterProxy;
 use Symfony\Component\Cache\Traits\RedisProxy;
 use Symfony\Component\Lock\Exception\InvalidArgumentException;
+use Symfony\Component\Lock\Exception\InvalidTtlException;
 use Symfony\Component\Lock\Exception\LockConflictedException;
-use Symfony\Component\Lock\Exception\LockExpiredException;
 use Symfony\Component\Lock\Key;
-use Symfony\Component\Lock\StoreInterface;
+use Symfony\Component\Lock\PersistingStoreInterface;
 
 /**
- * RedisStore is a StoreInterface implementation using Redis as store engine.
+ * RedisStore is a PersistingStoreInterface implementation using Redis as store engine.
  *
  * @author Jérémy Derussé <jeremy@derusse.com>
  */
-class RedisStore implements StoreInterface
+class RedisStore implements PersistingStoreInterface
 {
+    use ExpiringStoreTrait;
+
     private $redis;
     private $initialTtl;
 
@@ -39,7 +42,7 @@ class RedisStore implements StoreInterface
         }
 
         if ($initialTtl <= 0) {
-            throw new InvalidArgumentException(sprintf('%s() expects a strictly positive TTL. Got %d.', __METHOD__, $initialTtl));
+            throw new InvalidTtlException(sprintf('%s() expects a strictly positive TTL. Got %d.', __METHOD__, $initialTtl));
         }
 
         $this->redis = $redisClient;
@@ -62,24 +65,17 @@ class RedisStore implements StoreInterface
         ';
 
         $key->reduceLifetime($this->initialTtl);
-        if (!$this->evaluate($script, (string) $key, array($this->getUniqueToken($key), (int) ceil($this->initialTtl * 1000)))) {
+        if (!$this->evaluate($script, (string) $key, [$this->getUniqueToken($key), (int) ceil($this->initialTtl * 1000)])) {
             throw new LockConflictedException();
         }
 
-        if ($key->isExpired()) {
-            throw new LockExpiredException(sprintf('Failed to store the "%s" lock.', $key));
-        }
-    }
-
-    public function waitAndSave(Key $key)
-    {
-        throw new InvalidArgumentException(sprintf('The store "%s" does not supports blocking locks.', \get_class($this)));
+        $this->checkNotExpired($key);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function putOffExpiration(Key $key, $ttl)
+    public function putOffExpiration(Key $key, float $ttl)
     {
         $script = '
             if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -90,13 +86,11 @@ class RedisStore implements StoreInterface
         ';
 
         $key->reduceLifetime($ttl);
-        if (!$this->evaluate($script, (string) $key, array($this->getUniqueToken($key), (int) ceil($ttl * 1000)))) {
+        if (!$this->evaluate($script, (string) $key, [$this->getUniqueToken($key), (int) ceil($ttl * 1000)])) {
             throw new LockConflictedException();
         }
 
-        if ($key->isExpired()) {
-            throw new LockExpiredException(sprintf('Failed to put off the expiration of the "%s" lock within the specified time.', $key));
-        }
+        $this->checkNotExpired($key);
     }
 
     /**
@@ -112,7 +106,7 @@ class RedisStore implements StoreInterface
             end
         ';
 
-        $this->evaluate($script, (string) $key, array($this->getUniqueToken($key)));
+        $this->evaluate($script, (string) $key, [$this->getUniqueToken($key)]);
     }
 
     /**
@@ -130,16 +124,21 @@ class RedisStore implements StoreInterface
      */
     private function evaluate(string $script, string $resource, array $args)
     {
-        if ($this->redis instanceof \Redis || $this->redis instanceof \RedisCluster || $this->redis instanceof RedisProxy) {
-            return $this->redis->eval($script, array_merge(array($resource), $args), 1);
+        if (
+            $this->redis instanceof \Redis ||
+            $this->redis instanceof \RedisCluster ||
+            $this->redis instanceof RedisProxy ||
+            $this->redis instanceof RedisClusterProxy
+        ) {
+            return $this->redis->eval($script, array_merge([$resource], $args), 1);
         }
 
         if ($this->redis instanceof \RedisArray) {
-            return $this->redis->_instance($this->redis->_target($resource))->eval($script, array_merge(array($resource), $args), 1);
+            return $this->redis->_instance($this->redis->_target($resource))->eval($script, array_merge([$resource], $args), 1);
         }
 
         if ($this->redis instanceof \Predis\Client) {
-            return $this->redis->eval(...array_merge(array($script, 1, $resource), $args));
+            return $this->redis->eval(...array_merge([$script, 1, $resource], $args));
         }
 
         throw new InvalidArgumentException(sprintf('%s() expects being initialized with a Redis, RedisArray, RedisCluster or Predis\Client, %s given', __METHOD__, \is_object($this->redis) ? \get_class($this->redis) : \gettype($this->redis)));

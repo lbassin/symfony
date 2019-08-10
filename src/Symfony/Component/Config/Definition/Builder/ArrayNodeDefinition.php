@@ -25,7 +25,7 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     protected $performDeepMerging = true;
     protected $ignoreExtraKeys = false;
     protected $removeExtraKeys = true;
-    protected $children = array();
+    protected $children = [];
     protected $prototype;
     protected $atLeastOne = false;
     protected $allowNewKeys = true;
@@ -43,8 +43,8 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     {
         parent::__construct($name, $parent);
 
-        $this->nullEquivalent = array();
-        $this->trueEquivalent = array();
+        $this->nullEquivalent = [];
+        $this->trueEquivalent = [];
     }
 
     /**
@@ -66,11 +66,9 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     /**
      * Sets a prototype for child nodes.
      *
-     * @param string $type The type of node
-     *
      * @return NodeDefinition
      */
-    public function prototype($type)
+    public function prototype(string $type)
     {
         return $this->prototype = $this->getNodeBuilder()->node(null, $type)->setParent($this);
     }
@@ -194,12 +192,12 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     /**
      * Sets a normalization rule for XML configurations.
      *
-     * @param string $singular The key to remap
-     * @param string $plural   The plural of the key for irregular plurals
+     * @param string      $singular The key to remap
+     * @param string|null $plural   The plural of the key for irregular plurals
      *
      * @return $this
      */
-    public function fixXmlConfig($singular, $plural = null)
+    public function fixXmlConfig(string $singular, string $plural = null)
     {
         $this->normalization()->remap($singular, $plural);
 
@@ -214,15 +212,15 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
      * to be the key of the particular item. For example, if "id" is the
      * "key", then:
      *
-     *     array(
-     *         array('id' => 'my_name', 'foo' => 'bar'),
-     *     );
+     *     [
+     *         ['id' => 'my_name', 'foo' => 'bar'],
+     *     ];
      *
      *   becomes
      *
-     *     array(
-     *         'my_name' => array('foo' => 'bar'),
-     *     );
+     *     [
+     *         'my_name' => ['foo' => 'bar'],
+     *     ];
      *
      * If you'd like "'id' => 'my_name'" to still be present in the resulting
      * array, then you can set the second argument of this method to false.
@@ -234,7 +232,7 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
      *
      * @return $this
      */
-    public function useAttributeAsKey($name, $removeKeyItem = true)
+    public function useAttributeAsKey(string $name, bool $removeKeyItem = true)
     {
         $this->key = $name;
         $this->removeKeyItem = $removeKeyItem;
@@ -245,11 +243,9 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     /**
      * Sets whether the node can be unset.
      *
-     * @param bool $allow
-     *
      * @return $this
      */
-    public function canBeUnset($allow = true)
+    public function canBeUnset(bool $allow = true)
     {
         $this->merge()->allowUnset($allow);
 
@@ -275,9 +271,9 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     {
         $this
             ->addDefaultsIfNotSet()
-            ->treatFalseLike(array('enabled' => false))
-            ->treatTrueLike(array('enabled' => true))
-            ->treatNullLike(array('enabled' => true))
+            ->treatFalseLike(['enabled' => false])
+            ->treatTrueLike(['enabled' => true])
+            ->treatNullLike(['enabled' => true])
             ->beforeNormalization()
                 ->ifArray()
                 ->then(function ($v) {
@@ -305,9 +301,9 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     {
         $this
             ->addDefaultsIfNotSet()
-            ->treatFalseLike(array('enabled' => false))
-            ->treatTrueLike(array('enabled' => true))
-            ->treatNullLike(array('enabled' => true))
+            ->treatFalseLike(['enabled' => false])
+            ->treatTrueLike(['enabled' => true])
+            ->treatNullLike(['enabled' => true])
             ->children()
                 ->booleanNode('enabled')
                     ->defaultTrue()
@@ -332,16 +328,16 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
      * Allows extra config keys to be specified under an array without
      * throwing an exception.
      *
-     * Those config values are simply ignored and removed from the
-     * resulting array. This should be used only in special cases where
-     * you want to send an entire configuration array through a special
-     * tree that processes only part of the array.
+     * Those config values are ignored and removed from the resulting
+     * array. This should be used only in special cases where you want
+     * to send an entire configuration array through a special tree that
+     * processes only part of the array.
      *
      * @param bool $remove Whether to remove the extra keys
      *
      * @return $this
      */
-    public function ignoreExtraKeys($remove = true)
+    public function ignoreExtraKeys(bool $remove = true)
     {
         $this->ignoreExtraKeys = true;
         $this->removeExtraKeys = $remove;
@@ -350,15 +346,13 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     }
 
     /**
-     * Sets key normalization.
-     *
-     * @param bool $bool Whether to enable key normalization
+     * Sets whether to enable key normalization.
      *
      * @return $this
      */
-    public function normalizeKeys($bool)
+    public function normalizeKeys(bool $bool)
     {
-        $this->normalizeKeys = (bool) $bool;
+        $this->normalizeKeys = $bool;
 
         return $this;
     }
@@ -417,6 +411,10 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
             }
 
             if ($this->default) {
+                if (!\is_array($this->defaultValue)) {
+                    throw new \InvalidArgumentException(sprintf('%s: the default value of an array node has to be an array.', $node->getPath()));
+                }
+
                 $node->setDefaultValue($this->defaultValue);
             }
 
@@ -522,5 +520,27 @@ class ArrayNodeDefinition extends NodeDefinition implements ParentNodeDefinition
     public function getChildNodeDefinitions()
     {
         return $this->children;
+    }
+
+    /**
+     * Finds a node defined by the given $nodePath.
+     *
+     * @param string $nodePath The path of the node to find. e.g "doctrine.orm.mappings"
+     */
+    public function find(string $nodePath): NodeDefinition
+    {
+        $firstPathSegment = (false === $pathSeparatorPos = strpos($nodePath, $this->pathSeparator))
+            ? $nodePath
+            : substr($nodePath, 0, $pathSeparatorPos);
+
+        if (null === $node = ($this->children[$firstPathSegment] ?? null)) {
+            throw new \RuntimeException(sprintf('Node with name "%s" does not exist in the current node "%s".', $firstPathSegment, $this->name));
+        }
+
+        if (false === $pathSeparatorPos) {
+            return $node;
+        }
+
+        return $node->find(substr($nodePath, $pathSeparatorPos + \strlen($this->pathSeparator)));
     }
 }

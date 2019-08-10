@@ -22,7 +22,7 @@ use Symfony\Contracts\Service\ResetInterface;
 class TraceableValidator implements ValidatorInterface, ResetInterface
 {
     private $validator;
-    private $collectedData = array();
+    private $collectedData = [];
 
     public function __construct(ValidatorInterface $validator)
     {
@@ -39,7 +39,7 @@ class TraceableValidator implements ValidatorInterface, ResetInterface
 
     public function reset()
     {
-        $this->collectedData = array();
+        $this->collectedData = [];
     }
 
     /**
@@ -93,11 +93,11 @@ class TraceableValidator implements ValidatorInterface, ResetInterface
         $name = str_replace('\\', '/', $file);
         $name = substr($name, strrpos($name, '/') + 1);
 
-        $this->collectedData[] = array(
+        $this->collectedData[] = [
             'caller' => compact('name', 'file', 'line'),
             'context' => compact('value', 'constraints', 'groups'),
             'violations' => iterator_to_array($violations),
-        );
+        ];
 
         return $violations;
     }
@@ -105,7 +105,7 @@ class TraceableValidator implements ValidatorInterface, ResetInterface
     /**
      * {@inheritdoc}
      */
-    public function validateProperty($object, $propertyName, $groups = null)
+    public function validateProperty($object, string $propertyName, $groups = null)
     {
         return $this->validator->validateProperty($object, $propertyName, $groups);
     }
@@ -113,7 +113,7 @@ class TraceableValidator implements ValidatorInterface, ResetInterface
     /**
      * {@inheritdoc}
      */
-    public function validatePropertyValue($objectOrClass, $propertyName, $value, $groups = null)
+    public function validatePropertyValue($objectOrClass, string $propertyName, $value, $groups = null)
     {
         return $this->validator->validatePropertyValue($objectOrClass, $propertyName, $value, $groups);
     }

@@ -119,10 +119,8 @@ abstract class Bundle implements BundleInterface
 
     /**
      * Returns the bundle name (the class short name).
-     *
-     * @return string The Bundle name
      */
-    final public function getName()
+    final public function getName(): string
     {
         if (null === $this->name) {
             $this->parseClassName();
@@ -133,6 +131,11 @@ abstract class Bundle implements BundleInterface
 
     public function registerCommands(Application $application)
     {
+    }
+
+    public function getPublicDir(): string
+    {
+        return 'Resources/public';
     }
 
     /**

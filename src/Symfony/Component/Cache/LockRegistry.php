@@ -11,8 +11,9 @@
 
 namespace Symfony\Component\Cache;
 
-use Psr\Cache\CacheItemInterface;
-use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * LockRegistry is used internally by existing adapters to protect against cache stampede.
@@ -23,36 +24,38 @@ use Psr\Cache\CacheItemPoolInterface;
  *
  * @author Nicolas Grekas <p@tchwork.com>
  */
-class LockRegistry
+final class LockRegistry
 {
-    private static $save;
-    private static $openedFiles = array();
-    private static $lockedFiles = array();
+    private static $openedFiles = [];
+    private static $lockedFiles = [];
 
     /**
      * The number of items in this list controls the max number of concurrent processes.
      */
-    private static $files = array(
+    private static $files = [
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'AbstractAdapter.php',
+        __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'AbstractTagAwareAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'AdapterInterface.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'ApcuAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'ArrayAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'ChainAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'DoctrineAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'FilesystemAdapter.php',
+        __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'FilesystemTagAwareAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'MemcachedAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'NullAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'PdoAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'PhpArrayAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'PhpFilesAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'ProxyAdapter.php',
+        __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'Psr16Adapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'RedisAdapter.php',
-        __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'SimpleCacheAdapter.php',
+        __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'RedisTagAwareAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'TagAwareAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'TagAwareAdapterInterface.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'TraceableAdapter.php',
         __DIR__.\DIRECTORY_SEPARATOR.'Adapter'.\DIRECTORY_SEPARATOR.'TraceableTagAwareAdapter.php',
-    );
+    ];
 
     /**
      * Defines a set of existing files that will be used as keys to acquire locks.
@@ -70,54 +73,63 @@ class LockRegistry
                 fclose($file);
             }
         }
-        self::$openedFiles = self::$lockedFiles = array();
+        self::$openedFiles = self::$lockedFiles = [];
 
         return $previousFiles;
     }
 
-    /**
-     * @internal
-     */
-    public static function save(string $key, CacheItemPoolInterface $pool, CacheItemInterface $item, callable $callback, float $startTime, &$value): bool
+    public static function compute(callable $callback, ItemInterface $item, bool &$save, CacheInterface $pool, \Closure $setMetadata = null, LoggerInterface $logger = null)
     {
-        self::$save = self::$save ?? \Closure::bind(
-            function (CacheItemPoolInterface $pool, CacheItemInterface $item, $value, float $startTime) {
-                if ($item instanceof CacheItem && $startTime && $item->expiry > $endTime = microtime(true)) {
-                    $item->newMetadata[CacheItem::METADATA_EXPIRY] = $item->expiry;
-                    $item->newMetadata[CacheItem::METADATA_CTIME] = 1000 * (int) ($endTime - $startTime);
-                }
-                $pool->save($item->set($value));
-
-                return $value;
-            },
-            null,
-            CacheItem::class
-        );
-
-        $key = self::$files ? crc32($key) % \count(self::$files) : -1;
+        $key = self::$files ? crc32($item->getKey()) % \count(self::$files) : -1;
 
         if ($key < 0 || (self::$lockedFiles[$key] ?? false) || !$lock = self::open($key)) {
-            $value = (self::$save)($pool, $item, $callback($item), $startTime);
-
-            return true;
+            return $callback($item, $save);
         }
 
-        try {
-            // race to get the lock in non-blocking mode
-            if (flock($lock, LOCK_EX | LOCK_NB)) {
-                self::$lockedFiles[$key] = true;
-                $value = (self::$save)($pool, $item, $callback($item), $startTime);
+        while (true) {
+            try {
+                // race to get the lock in non-blocking mode
+                if (flock($lock, LOCK_EX | LOCK_NB)) {
+                    $logger && $logger->info('Lock acquired, now computing item "{key}"', ['key' => $item->getKey()]);
+                    self::$lockedFiles[$key] = true;
 
-                return true;
+                    $value = $callback($item, $save);
+
+                    if ($save) {
+                        if ($setMetadata) {
+                            $setMetadata($item);
+                        }
+
+                        $pool->save($item->set($value));
+                        $save = false;
+                    }
+
+                    return $value;
+                }
+                // if we failed the race, retry locking in blocking mode to wait for the winner
+                $logger && $logger->info('Item "{key}" is locked, waiting for it to be released', ['key' => $item->getKey()]);
+                flock($lock, LOCK_SH);
+            } finally {
+                flock($lock, LOCK_UN);
+                unset(self::$lockedFiles[$key]);
             }
-            // if we failed the race, retry locking in blocking mode to wait for the winner
-            flock($lock, LOCK_SH);
-        } finally {
-            flock($lock, LOCK_UN);
-            unset(self::$lockedFiles[$key]);
-        }
+            static $signalingException, $signalingCallback;
+            $signalingException = $signalingException ?? unserialize("O:9:\"Exception\":1:{s:16:\"\0Exception\0trace\";a:0:{}}");
+            $signalingCallback = $signalingCallback ?? function () use ($signalingException) { throw $signalingException; };
 
-        return false;
+            try {
+                $value = $pool->get($item->getKey(), $signalingCallback, 0);
+                $logger && $logger->info('Item "{key}" retrieved after lock was released', ['key' => $item->getKey()]);
+                $save = false;
+
+                return $value;
+            } catch (\Exception $e) {
+                if ($signalingException !== $e) {
+                    throw $e;
+                }
+                $logger && $logger->info('Item "{key}" not found while lock was released, now retrying', ['key' => $item->getKey()]);
+            }
+        }
     }
 
     private static function open(int $key)
@@ -132,6 +144,6 @@ class LockRegistry
             restore_error_handler();
         }
 
-        self::$openedFiles[$key] = $h ?: @fopen(self::$files[$key], 'r');
+        return self::$openedFiles[$key] = $h ?: @fopen(self::$files[$key], 'r');
     }
 }

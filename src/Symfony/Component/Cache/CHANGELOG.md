@@ -1,18 +1,44 @@
 CHANGELOG
 =========
 
+5.0.0
+-----
+
+ * removed all PSR-16 implementations in the `Simple` namespace
+ * removed `SimpleCacheAdapter`
+ * removed `AbstractAdapter::unserialize()`
+ * removed `CacheItem::getPreviousTags()`
+
+4.4.0
+-----
+
+ * added support for connecting to Redis Sentinel clusters
+ * added argument `$prefix` to `AdapterInterface::clear()`
+
+4.3.0
+-----
+
+ * removed `psr/simple-cache` dependency, run `composer require psr/simple-cache` if you need it
+ * deprecated all PSR-16 adapters, use `Psr16Cache` or `Symfony\Contracts\Cache\CacheInterface` implementations instead
+ * deprecated `SimpleCacheAdapter`, use `Psr16Adapter` instead
+
 4.2.0
 -----
 
+ * added support for connecting to Redis clusters via DSN
+ * added support for configuring multiple Memcached servers via DSN
  * added `MarshallerInterface` and `DefaultMarshaller` to allow changing the serializer and provide one that automatically uses igbinary when available
- * added `CacheInterface`, which provides stampede protection via probabilistic early expiration and should become the preferred way to use a cache
+ * implemented `CacheInterface`, which provides stampede protection via probabilistic early expiration and should become the preferred way to use a cache
  * added sub-second expiry accuracy for backends that support it
  * added support for phpredis 4 `compression` and `tcp_keepalive` options
  * added automatic table creation when using Doctrine DBAL with PDO-based backends
  * throw `LogicException` when `CacheItem::tag()` is called on an item coming from a non tag-aware pool
  * deprecated `CacheItem::getPreviousTags()`, use `CacheItem::getMetadata()` instead
- * deprecated the `AbstractAdapter::createSystemCache()` method
  * deprecated the `AbstractAdapter::unserialize()` and `AbstractCache::unserialize()` methods
+ * added `CacheCollectorPass` (originally in `FrameworkBundle`)
+ * added `CachePoolClearerPass` (originally in `FrameworkBundle`)
+ * added `CachePoolPass` (originally in `FrameworkBundle`)
+ * added `CachePoolPrunerPass` (originally in `FrameworkBundle`)
 
 3.4.0
 -----

@@ -26,14 +26,14 @@ class FormRegistry implements FormRegistryInterface
     /**
      * Extensions.
      *
-     * @var FormExtensionInterface[] An array of FormExtensionInterface
+     * @var FormExtensionInterface[]
      */
-    private $extensions = array();
+    private $extensions = [];
 
     /**
      * @var ResolvedFormTypeInterface[]
      */
-    private $types = array();
+    private $types = [];
 
     /**
      * @var FormTypeGuesserInterface|false|null
@@ -45,11 +45,10 @@ class FormRegistry implements FormRegistryInterface
      */
     private $resolvedTypeFactory;
 
-    private $checkedTypes = array();
+    private $checkedTypes = [];
 
     /**
-     * @param FormExtensionInterface[]         $extensions          An array of FormExtensionInterface
-     * @param ResolvedFormTypeFactoryInterface $resolvedTypeFactory The factory for resolved form types
+     * @param FormExtensionInterface[] $extensions An array of FormExtensionInterface
      *
      * @throws UnexpectedTypeException if any extension does not implement FormExtensionInterface
      */
@@ -99,21 +98,16 @@ class FormRegistry implements FormRegistryInterface
     }
 
     /**
-     * Wraps a type into a ResolvedFormTypeInterface implementation and connects
-     * it with its parent type.
-     *
-     * @param FormTypeInterface $type The type to resolve
-     *
-     * @return ResolvedFormTypeInterface The resolved type
+     * Wraps a type into a ResolvedFormTypeInterface implementation and connects it with its parent type.
      */
-    private function resolveType(FormTypeInterface $type)
+    private function resolveType(FormTypeInterface $type): ResolvedFormTypeInterface
     {
-        $typeExtensions = array();
+        $typeExtensions = [];
         $parentType = $type->getParent();
         $fqcn = \get_class($type);
 
         if (isset($this->checkedTypes[$fqcn])) {
-            $types = implode(' > ', array_merge(array_keys($this->checkedTypes), array($fqcn)));
+            $types = implode(' > ', array_merge(array_keys($this->checkedTypes), [$fqcn]));
             throw new LogicException(sprintf('Circular reference detected for form type "%s" (%s).', $fqcn, $types));
         }
 
@@ -161,7 +155,7 @@ class FormRegistry implements FormRegistryInterface
     public function getTypeGuesser()
     {
         if (false === $this->guesser) {
-            $guessers = array();
+            $guessers = [];
 
             foreach ($this->extensions as $extension) {
                 $guesser = $extension->getTypeGuesser();

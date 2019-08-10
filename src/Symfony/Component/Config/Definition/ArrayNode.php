@@ -22,8 +22,8 @@ use Symfony\Component\Config\Definition\Exception\UnsetKeyException;
  */
 class ArrayNode extends BaseNode implements PrototypeNodeInterface
 {
-    protected $xmlRemappings = array();
-    protected $children = array();
+    protected $xmlRemappings = [];
+    protected $children = [];
     protected $allowFalse = false;
     protected $allowNewKeys = true;
     protected $addIfNotSet = false;
@@ -56,10 +56,10 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
             return $value;
         }
 
-        $normalized = array();
+        $normalized = [];
 
         foreach ($value as $k => $v) {
-            if (false !== strpos($k, '-') && false === strpos($k, '_') && !array_key_exists($normalizedKey = str_replace('-', '_', $k), $value)) {
+            if (false !== strpos($k, '-') && false === strpos($k, '_') && !\array_key_exists($normalizedKey = str_replace('-', '_', $k), $value)) {
                 $normalized[$normalizedKey] = $v;
             } else {
                 $normalized[$k] = $v;
@@ -82,7 +82,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
     /**
      * Sets the xml remappings that should be performed.
      *
-     * @param array $remappings An array of the form array(array(string, string))
+     * @param array $remappings An array of the form [[string, string]]
      */
     public function setXmlRemappings(array $remappings)
     {
@@ -92,7 +92,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
     /**
      * Gets the xml remappings that should be performed.
      *
-     * @return array $remappings an array of the form array(array(string, string))
+     * @return array an array of the form [[string, string]]
      */
     public function getXmlRemappings()
     {
@@ -102,60 +102,52 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
     /**
      * Sets whether to add default values for this array if it has not been
      * defined in any of the configuration files.
-     *
-     * @param bool $boolean
      */
-    public function setAddIfNotSet($boolean)
+    public function setAddIfNotSet(bool $boolean)
     {
-        $this->addIfNotSet = (bool) $boolean;
+        $this->addIfNotSet = $boolean;
     }
 
     /**
      * Sets whether false is allowed as value indicating that the array should be unset.
-     *
-     * @param bool $allow
      */
-    public function setAllowFalse($allow)
+    public function setAllowFalse(bool $allow)
     {
-        $this->allowFalse = (bool) $allow;
+        $this->allowFalse = $allow;
     }
 
     /**
      * Sets whether new keys can be defined in subsequent configurations.
-     *
-     * @param bool $allow
      */
-    public function setAllowNewKeys($allow)
+    public function setAllowNewKeys(bool $allow)
     {
-        $this->allowNewKeys = (bool) $allow;
+        $this->allowNewKeys = $allow;
     }
 
     /**
      * Sets if deep merging should occur.
-     *
-     * @param bool $boolean
      */
-    public function setPerformDeepMerging($boolean)
+    public function setPerformDeepMerging(bool $boolean)
     {
-        $this->performDeepMerging = (bool) $boolean;
+        $this->performDeepMerging = $boolean;
     }
 
     /**
-     * Whether extra keys should just be ignore without an exception.
+     * Whether extra keys should just be ignored without an exception.
      *
      * @param bool $boolean To allow extra keys
      * @param bool $remove  To remove extra keys
      */
-    public function setIgnoreExtraKeys($boolean, $remove = true)
+    public function setIgnoreExtraKeys(bool $boolean, bool $remove = true)
     {
-        $this->ignoreExtraKeys = (bool) $boolean;
+        $this->ignoreExtraKeys = $boolean;
         $this->removeExtraKeys = $this->ignoreExtraKeys && $remove;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function setName($name)
+    public function setName(string $name)
     {
         $this->name = $name;
     }
@@ -177,7 +169,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
             throw new \RuntimeException(sprintf('The node at path "%s" has no default value.', $this->getPath()));
         }
 
-        $defaults = array();
+        $defaults = [];
         foreach ($this->children as $name => $child) {
             if ($child->hasDefaultValue()) {
                 $defaults[$name] = $child->getDefaultValue();
@@ -223,7 +215,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
         }
 
         foreach ($this->children as $name => $child) {
-            if (!array_key_exists($name, $value)) {
+            if (!\array_key_exists($name, $value)) {
                 if ($child->isRequired()) {
                     $ex = new InvalidConfigurationException(sprintf('The child node "%s" at path "%s" must be configured.', $name, $this->getPath()));
                     $ex->setPath($this->getPath());
@@ -289,10 +281,13 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
 
         $value = $this->remapXml($value);
 
-        $normalized = array();
+        $normalized = [];
         foreach ($value as $name => $val) {
             if (isset($this->children[$name])) {
-                $normalized[$name] = $this->children[$name]->normalize($val);
+                try {
+                    $normalized[$name] = $this->children[$name]->normalize($val);
+                } catch (UnsetKeyException $e) {
+                }
                 unset($value[$name]);
             } elseif (!$this->removeExtraKeys) {
                 $normalized[$name] = $val;
@@ -303,7 +298,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
         if (\count($value) && !$this->ignoreExtraKeys) {
             $proposals = array_keys($this->children);
             sort($proposals);
-            $guesses = array();
+            $guesses = [];
 
             foreach (array_keys($value) as $subject) {
                 $minScore = INF;
@@ -380,7 +375,7 @@ class ArrayNode extends BaseNode implements PrototypeNodeInterface
 
         foreach ($rightSide as $k => $v) {
             // no conflict
-            if (!array_key_exists($k, $leftSide)) {
+            if (!\array_key_exists($k, $leftSide)) {
                 if (!$this->allowNewKeys) {
                     $ex = new InvalidConfigurationException(sprintf('You are not allowed to define new elements for path "%s". Please define all elements for this path in one config file. If you are trying to overwrite an element, make sure you redefine it with the same name.', $this->getPath()));
                     $ex->setPath($this->getPath());

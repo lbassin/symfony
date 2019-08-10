@@ -29,11 +29,9 @@ class PhpExecutableFinder
     /**
      * Finds The PHP executable.
      *
-     * @param bool $includeArgs Whether or not include command arguments
-     *
      * @return string|false The PHP executable path or false if it cannot be found
      */
-    public function find($includeArgs = true)
+    public function find(bool $includeArgs = true)
     {
         if ($php = getenv('PHP_BINARY')) {
             if (!is_executable($php)) {
@@ -54,7 +52,7 @@ class PhpExecutableFinder
         $args = $includeArgs && $args ? ' '.implode(' ', $args) : '';
 
         // PHP_BINARY return the current sapi executable
-        if (PHP_BINARY && \in_array(\PHP_SAPI, array('cli', 'cli-server', 'phpdbg'), true)) {
+        if (PHP_BINARY && \in_array(\PHP_SAPI, ['cgi-fcgi', 'cli', 'cli-server', 'phpdbg'], true)) {
             return PHP_BINARY.$args;
         }
 
@@ -76,7 +74,7 @@ class PhpExecutableFinder
             return $php;
         }
 
-        $dirs = array(PHP_BINDIR);
+        $dirs = [PHP_BINDIR];
         if ('\\' === \DIRECTORY_SEPARATOR) {
             $dirs[] = 'C:\xampp\php\\';
         }
@@ -91,7 +89,7 @@ class PhpExecutableFinder
      */
     public function findArguments()
     {
-        $arguments = array();
+        $arguments = [];
         if ('phpdbg' === \PHP_SAPI) {
             $arguments[] = '-qrr';
         }

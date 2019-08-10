@@ -71,7 +71,7 @@ class YamlReferenceDumper
 
     private function writeNode(NodeInterface $node, NodeInterface $parentNode = null, int $depth = 0, bool $prototypedArray = false)
     {
-        $comments = array();
+        $comments = [];
         $default = '';
         $defaultArray = null;
         $children = null;
@@ -182,7 +182,7 @@ class YamlReferenceDumper
         $this->reference .= sprintf($format, $text)."\n";
     }
 
-    private function writeArray(array $array, $depth)
+    private function writeArray(array $array, int $depth)
     {
         $isIndexed = array_values($array) === $array;
 
@@ -237,6 +237,6 @@ class YamlReferenceDumper
         }
         $keyNode->setInfo($info);
 
-        return array($key => $keyNode);
+        return [$key => $keyNode];
     }
 }

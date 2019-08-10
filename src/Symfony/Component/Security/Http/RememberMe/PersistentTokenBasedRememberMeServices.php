@@ -79,11 +79,11 @@ class PersistentTokenBasedRememberMeServices extends AbstractRememberMeServices
         $request->attributes->set(self::COOKIE_ATTR_NAME,
             new Cookie(
                 $this->options['name'],
-                $this->encodeCookie(array($series, $tokenValue)),
+                $this->encodeCookie([$series, $tokenValue]),
                 time() + $this->options['lifetime'],
                 $this->options['path'],
                 $this->options['domain'],
-                $this->options['secure'],
+                $this->options['secure'] ?? $request->isSecure(),
                 $this->options['httponly'],
                 false,
                 $this->options['samesite'] ?? null
@@ -114,11 +114,11 @@ class PersistentTokenBasedRememberMeServices extends AbstractRememberMeServices
         $response->headers->setCookie(
             new Cookie(
                 $this->options['name'],
-                $this->encodeCookie(array($series, $tokenValue)),
+                $this->encodeCookie([$series, $tokenValue]),
                 time() + $this->options['lifetime'],
                 $this->options['path'],
                 $this->options['domain'],
-                $this->options['secure'],
+                $this->options['secure'] ?? $request->isSecure(),
                 $this->options['httponly'],
                 false,
                 $this->options['samesite'] ?? null

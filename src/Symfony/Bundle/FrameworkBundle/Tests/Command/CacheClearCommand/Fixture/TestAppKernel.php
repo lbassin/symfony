@@ -21,14 +21,14 @@ class TestAppKernel extends Kernel
 {
     public function registerBundles()
     {
-        return array(
+        return [
             new FrameworkBundle(),
-        );
+        ];
     }
 
-    public function setRootDir($rootDir)
+    public function getProjectDir()
     {
-        $this->rootDir = $rootDir;
+        return __DIR__.'/test';
     }
 
     public function registerContainerConfiguration(LoaderInterface $loader)

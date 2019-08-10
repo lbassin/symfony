@@ -13,11 +13,11 @@ namespace Symfony\Bundle\SecurityBundle\Tests\Functional;
 
 use Symfony\Component\HttpKernel\Kernel;
 
-class JsonLoginLdapTest extends WebTestCase
+class JsonLoginLdapTest extends AbstractWebTestCase
 {
     public function testKernelBoot()
     {
-        $kernel = self::createKernel(array('test_case' => 'JsonLoginLdap', 'root_config' => 'config.yml'));
+        $kernel = self::createKernel(['test_case' => 'JsonLoginLdap', 'root_config' => 'config.yml']);
         $kernel->boot();
 
         $this->assertInstanceOf(Kernel::class, $kernel);

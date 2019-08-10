@@ -14,7 +14,7 @@ namespace Symfony\Contracts\Cache;
 use Psr\Cache\InvalidArgumentException;
 
 /**
- * Interface for invalidating cached items using tags.
+ * Allows invalidating cached items using tags.
  *
  * @author Nicolas Grekas <p@tchwork.com>
  */

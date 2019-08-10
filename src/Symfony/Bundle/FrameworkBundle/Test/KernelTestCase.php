@@ -35,6 +35,13 @@ abstract class KernelTestCase extends TestCase
      */
     protected static $container;
 
+    protected static $booted;
+
+    protected function tearDown(): void
+    {
+        static::ensureKernelShutdown();
+    }
+
     /**
      * @return string The Kernel class name
      *
@@ -59,12 +66,13 @@ abstract class KernelTestCase extends TestCase
      *
      * @return KernelInterface A KernelInterface instance
      */
-    protected static function bootKernel(array $options = array())
+    protected static function bootKernel(array $options = [])
     {
         static::ensureKernelShutdown();
 
         static::$kernel = static::createKernel($options);
         static::$kernel->boot();
+        static::$booted = true;
 
         $container = static::$kernel->getContainer();
         static::$container = $container->has('test.service_container') ? $container->get('test.service_container') : $container;
@@ -82,7 +90,7 @@ abstract class KernelTestCase extends TestCase
      *
      * @return KernelInterface A KernelInterface instance
      */
-    protected static function createKernel(array $options = array())
+    protected static function createKernel(array $options = [])
     {
         if (null === static::$class) {
             static::$class = static::getKernelClass();
@@ -112,25 +120,18 @@ abstract class KernelTestCase extends TestCase
     }
 
     /**
-     * Shuts the kernel down if it was used in the test.
+     * Shuts the kernel down if it was used in the test - called by the tearDown method by default.
      */
     protected static function ensureKernelShutdown()
     {
         if (null !== static::$kernel) {
             $container = static::$kernel->getContainer();
             static::$kernel->shutdown();
+            static::$booted = false;
             if ($container instanceof ResetInterface) {
                 $container->reset();
             }
         }
         static::$container = null;
-    }
-
-    /**
-     * Clean up Kernel usage in this test.
-     */
-    protected function tearDown()
-    {
-        static::ensureKernelShutdown();
     }
 }

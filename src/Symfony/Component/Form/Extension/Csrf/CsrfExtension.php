@@ -26,11 +26,6 @@ class CsrfExtension extends AbstractExtension
     private $translator;
     private $translationDomain;
 
-    /**
-     * @param CsrfTokenManagerInterface $tokenManager      The CSRF token manager
-     * @param TranslatorInterface       $translator        The translator for translating error messages
-     * @param null|string               $translationDomain The translation domain for translating
-     */
     public function __construct(CsrfTokenManagerInterface $tokenManager, TranslatorInterface $translator = null, string $translationDomain = null)
     {
         $this->tokenManager = $tokenManager;
@@ -43,8 +38,8 @@ class CsrfExtension extends AbstractExtension
      */
     protected function loadTypeExtensions()
     {
-        return array(
+        return [
             new Type\FormTypeCsrfExtension($this->tokenManager, true, '_token', $this->translator, $this->translationDomain),
-        );
+        ];
     }
 }

@@ -44,7 +44,7 @@ final class GitRepository
         return new self(realpath($targetDir));
     }
 
-    public function getPath()
+    public function getPath(): string
     {
         return $this->path;
     }
@@ -64,7 +64,7 @@ final class GitRepository
         return $this->getLastLine($this->execInPath('git log -1 --format="%an"'));
     }
 
-    public function getLastAuthoredDate()
+    public function getLastAuthoredDate(): \DateTime
     {
         return new \DateTime($this->getLastLine($this->execInPath('git log -1 --format="%ai"')));
     }
@@ -85,7 +85,7 @@ final class GitRepository
         $this->execInPath(sprintf('git checkout %s', escapeshellarg($branch)));
     }
 
-    private function execInPath($command)
+    private function execInPath(string $command)
     {
         return self::exec(sprintf('cd %s && %s', escapeshellarg($this->path), $command));
     }

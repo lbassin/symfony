@@ -11,6 +11,8 @@
 
 namespace Symfony\Component\Messenger;
 
+use Symfony\Component\Messenger\Stamp\StampInterface;
+
 /**
  * @author Samuel Roze <samuel.roze@gmail.com>
  */
@@ -19,11 +21,8 @@ interface MessageBusInterface
     /**
      * Dispatches the given message.
      *
-     * The bus can return a value coming from handlers, but is not required to do so.
-     *
-     * @param object|Envelope $message The message or the message pre-wrapped in an envelope
-     *
-     * @return mixed
+     * @param object|Envelope  $message The message or the message pre-wrapped in an envelope
+     * @param StampInterface[] $stamps
      */
-    public function dispatch($message);
+    public function dispatch($message, array $stamps = []): Envelope;
 }

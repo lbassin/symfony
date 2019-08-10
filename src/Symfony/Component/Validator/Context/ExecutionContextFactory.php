@@ -26,14 +26,6 @@ class ExecutionContextFactory implements ExecutionContextFactoryInterface
     private $translator;
     private $translationDomain;
 
-    /**
-     * Creates a new context factory.
-     *
-     * @param TranslatorInterface $translator        The translator
-     * @param string|null         $translationDomain The translation domain to
-     *                                               use for translating
-     *                                               violation messages
-     */
     public function __construct(TranslatorInterface $translator, string $translationDomain = null)
     {
         $this->translator = $translator;

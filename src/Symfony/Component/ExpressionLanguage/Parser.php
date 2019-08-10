@@ -36,40 +36,40 @@ class Parser
     {
         $this->functions = $functions;
 
-        $this->unaryOperators = array(
-            'not' => array('precedence' => 50),
-            '!' => array('precedence' => 50),
-            '-' => array('precedence' => 500),
-            '+' => array('precedence' => 500),
-        );
-        $this->binaryOperators = array(
-            'or' => array('precedence' => 10, 'associativity' => self::OPERATOR_LEFT),
-            '||' => array('precedence' => 10, 'associativity' => self::OPERATOR_LEFT),
-            'and' => array('precedence' => 15, 'associativity' => self::OPERATOR_LEFT),
-            '&&' => array('precedence' => 15, 'associativity' => self::OPERATOR_LEFT),
-            '|' => array('precedence' => 16, 'associativity' => self::OPERATOR_LEFT),
-            '^' => array('precedence' => 17, 'associativity' => self::OPERATOR_LEFT),
-            '&' => array('precedence' => 18, 'associativity' => self::OPERATOR_LEFT),
-            '==' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '===' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '!=' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '!==' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '<' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '>' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '>=' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '<=' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            'not in' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            'in' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            'matches' => array('precedence' => 20, 'associativity' => self::OPERATOR_LEFT),
-            '..' => array('precedence' => 25, 'associativity' => self::OPERATOR_LEFT),
-            '+' => array('precedence' => 30, 'associativity' => self::OPERATOR_LEFT),
-            '-' => array('precedence' => 30, 'associativity' => self::OPERATOR_LEFT),
-            '~' => array('precedence' => 40, 'associativity' => self::OPERATOR_LEFT),
-            '*' => array('precedence' => 60, 'associativity' => self::OPERATOR_LEFT),
-            '/' => array('precedence' => 60, 'associativity' => self::OPERATOR_LEFT),
-            '%' => array('precedence' => 60, 'associativity' => self::OPERATOR_LEFT),
-            '**' => array('precedence' => 200, 'associativity' => self::OPERATOR_RIGHT),
-        );
+        $this->unaryOperators = [
+            'not' => ['precedence' => 50],
+            '!' => ['precedence' => 50],
+            '-' => ['precedence' => 500],
+            '+' => ['precedence' => 500],
+        ];
+        $this->binaryOperators = [
+            'or' => ['precedence' => 10, 'associativity' => self::OPERATOR_LEFT],
+            '||' => ['precedence' => 10, 'associativity' => self::OPERATOR_LEFT],
+            'and' => ['precedence' => 15, 'associativity' => self::OPERATOR_LEFT],
+            '&&' => ['precedence' => 15, 'associativity' => self::OPERATOR_LEFT],
+            '|' => ['precedence' => 16, 'associativity' => self::OPERATOR_LEFT],
+            '^' => ['precedence' => 17, 'associativity' => self::OPERATOR_LEFT],
+            '&' => ['precedence' => 18, 'associativity' => self::OPERATOR_LEFT],
+            '==' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '===' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '!=' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '!==' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '<' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '>' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '>=' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '<=' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            'not in' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            'in' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            'matches' => ['precedence' => 20, 'associativity' => self::OPERATOR_LEFT],
+            '..' => ['precedence' => 25, 'associativity' => self::OPERATOR_LEFT],
+            '+' => ['precedence' => 30, 'associativity' => self::OPERATOR_LEFT],
+            '-' => ['precedence' => 30, 'associativity' => self::OPERATOR_LEFT],
+            '~' => ['precedence' => 40, 'associativity' => self::OPERATOR_LEFT],
+            '*' => ['precedence' => 60, 'associativity' => self::OPERATOR_LEFT],
+            '/' => ['precedence' => 60, 'associativity' => self::OPERATOR_LEFT],
+            '%' => ['precedence' => 60, 'associativity' => self::OPERATOR_LEFT],
+            '**' => ['precedence' => 200, 'associativity' => self::OPERATOR_RIGHT],
+        ];
     }
 
     /**
@@ -85,14 +85,11 @@ class Parser
      * variable 'container' can be used in the expression
      * but the compiled code will use 'this'.
      *
-     * @param TokenStream $stream A token stream instance
-     * @param array       $names  An array of valid names
-     *
      * @return Node\Node A node tree
      *
      * @throws SyntaxError
      */
-    public function parse(TokenStream $stream, $names = array())
+    public function parse(TokenStream $stream, array $names = [])
     {
         $this->stream = $stream;
         $this->names = $names;
@@ -105,7 +102,7 @@ class Parser
         return $node;
     }
 
-    public function parseExpression($precedence = 0)
+    public function parseExpression(int $precedence = 0)
     {
         $expr = $this->getPrimary();
         $token = $this->stream->current;
@@ -364,7 +361,7 @@ class Parser
      */
     public function parseArguments()
     {
-        $args = array();
+        $args = [];
         $this->stream->expect(Token::PUNCTUATION_TYPE, '(', 'A list of arguments must begin with an opening parenthesis');
         while (!$this->stream->current->test(Token::PUNCTUATION_TYPE, ')')) {
             if (!empty($args)) {

@@ -11,6 +11,8 @@
 
 namespace Symfony\Component\Translation;
 
+use Symfony\Contracts\Translation\LocaleAwareInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Contracts\Translation\TranslatorTrait;
 
 /**
@@ -18,40 +20,7 @@ use Symfony\Contracts\Translation\TranslatorTrait;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class IdentityTranslator implements TranslatorInterface
+class IdentityTranslator implements TranslatorInterface, LocaleAwareInterface
 {
-    use TranslatorTrait {
-        transChoice as private doTransChoice;
-    }
-
-    private $selector;
-
-    /**
-     * @param MessageSelector|null $selector The message selector for pluralization
-     */
-    public function __construct(MessageSelector $selector = null)
-    {
-        $this->selector = $selector;
-
-        if (\get_class($this) !== __CLASS__) {
-            @trigger_error(sprintf('Calling "%s()" is deprecated since Symfony 4.2.'), E_USER_DEPRECATED);
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function transChoice($id, $number, array $parameters = array(), $domain = null, $locale = null)
-    {
-        if ($this->selector) {
-            return strtr($this->selector->choose((string) $id, (int) $number, $locale ?: $this->getLocale()), $parameters);
-        }
-
-        return $this->doTransChoice($id, $number, $parameters, $domain, $locale);
-    }
-
-    private function getPluralizationRule(int $number, string $locale): int
-    {
-        return PluralizationRules::get($number, $locale, false);
-    }
+    use TranslatorTrait;
 }

@@ -55,10 +55,10 @@ class GuardAuthenticationFactory implements SecurityFactoryInterface
         ;
     }
 
-    public function create(ContainerBuilder $container, $id, $config, $userProvider, $defaultEntryPoint)
+    public function create(ContainerBuilder $container, string $id, array $config, string $userProvider, ?string $defaultEntryPoint)
     {
         $authenticatorIds = $config['authenticators'];
-        $authenticatorReferences = array();
+        $authenticatorReferences = [];
         foreach ($authenticatorIds as $authenticatorId) {
             $authenticatorReferences[] = new Reference($authenticatorId);
         }
@@ -87,12 +87,12 @@ class GuardAuthenticationFactory implements SecurityFactoryInterface
         // this is always injected - then the listener decides if it should be used
         $container
             ->getDefinition($listenerId)
-            ->addTag('security.remember_me_aware', array('id' => $id, 'provider' => $userProvider));
+            ->addTag('security.remember_me_aware', ['id' => $id, 'provider' => $userProvider]);
 
-        return array($providerId, $listenerId, $entryPointId);
+        return [$providerId, $listenerId, $entryPointId];
     }
 
-    private function determineEntryPoint($defaultEntryPointId, array $config)
+    private function determineEntryPoint(?string $defaultEntryPointId, array $config)
     {
         if ($defaultEntryPointId) {
             // explode if they've configured the entry_point, but there is already one
@@ -115,6 +115,6 @@ class GuardAuthenticationFactory implements SecurityFactoryInterface
         }
 
         // we have multiple entry points - we must ask them to configure one
-        throw new \LogicException(sprintf('Because you have multiple guard configurators, you need to set the "guard.entry_point" key to one of your configurators (%s)', implode(', ', $authenticatorIds)));
+        throw new \LogicException(sprintf('Because you have multiple guard authenticators, you need to set the "guard.entry_point" key to one of your authenticators (%s)', implode(', ', $authenticatorIds)));
     }
 }

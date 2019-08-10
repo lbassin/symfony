@@ -1,6 +1,19 @@
 CHANGELOG
 =========
 
+4.4.0
+-----
+
+ * added `VarDumperTestTrait::setUpVarDumper()` and `VarDumperTestTrait::tearDownVarDumper()`
+   to configure casters & flags to use in tests
+ * added `ImagineCaster` and infrastructure to dump images
+ * added the stamps of a message after it is dispatched in `TraceableMessageBus` and `MessengerDataCollector` collected data
+
+4.3.0
+-----
+
+ * added `DsCaster` to support dumping the contents of data structures from the Ds extension
+
 4.2.0
 -----
 
@@ -34,4 +47,4 @@ CHANGELOG
 2.7.0
 -----
 
- * deprecated Cloner\Data::getLimitedClone(). Use withMaxDepth, withMaxItemsPerDepth or withRefHandles instead.
+ * deprecated `Cloner\Data::getLimitedClone()`. Use `withMaxDepth`, `withMaxItemsPerDepth` or `withRefHandles` instead.

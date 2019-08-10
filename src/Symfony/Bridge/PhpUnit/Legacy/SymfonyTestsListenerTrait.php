@@ -15,10 +15,13 @@ use Doctrine\Common\Annotations\AnnotationRegistry;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestSuite;
+use PHPUnit\Runner\BaseTestRunner;
 use PHPUnit\Util\Blacklist;
+use PHPUnit\Util\Test;
 use Symfony\Bridge\PhpUnit\ClockMock;
 use Symfony\Bridge\PhpUnit\DnsMock;
-use Symfony\Component\Debug\DebugClassLoader;
+use Symfony\Component\Debug\DebugClassLoader as LegacyDebugClassLoader;
+use Symfony\Component\ErrorHandler\DebugClassLoader;
 
 /**
  * PHP 5.3 compatible trait-like shared implementation.
@@ -47,13 +50,9 @@ class SymfonyTestsListenerTrait
      */
     public function __construct(array $mockedNamespaces = array())
     {
-        if (class_exists('PHPUnit_Util_Blacklist')) {
-            \PHPUnit_Util_Blacklist::$blacklistedClassNames['\Symfony\Bridge\PhpUnit\Legacy\SymfonyTestsListenerTrait'] = 2;
-        } else {
-            Blacklist::$blacklistedClassNames['\Symfony\Bridge\PhpUnit\Legacy\SymfonyTestsListenerTrait'] = 2;
-        }
+        Blacklist::$blacklistedClassNames['\Symfony\Bridge\PhpUnit\Legacy\SymfonyTestsListenerTrait'] = 2;
 
-        $enableDebugClassLoader = \class_exists('Symfony\Component\Debug\DebugClassLoader');
+        $enableDebugClassLoader = class_exists(DebugClassLoader::class) || class_exists(LegacyDebugClassLoader::class);
 
         foreach ($mockedNamespaces as $type => $namespaces) {
             if (!\is_array($namespaces)) {
@@ -74,13 +73,27 @@ class SymfonyTestsListenerTrait
             }
         }
         if ($enableDebugClassLoader) {
-            DebugClassLoader::enable();
+            if (class_exists(DebugClassLoader::class)) {
+                DebugClassLoader::enable();
+            } else {
+                LegacyDebugClassLoader::enable();
+            }
         }
         if (self::$globallyEnabled) {
             $this->state = -2;
         } else {
             self::$globallyEnabled = true;
         }
+    }
+
+    public function __sleep()
+    {
+        throw new \BadMethodCallException('Cannot serialize '.__CLASS__);
+    }
+
+    public function __wakeup()
+    {
+        throw new \BadMethodCallException('Cannot unserialize '.__CLASS__);
     }
 
     public function __destruct()
@@ -98,11 +111,6 @@ class SymfonyTestsListenerTrait
 
     public function startTestSuite($suite)
     {
-        if (class_exists('PHPUnit_Util_Blacklist', false)) {
-            $Test = 'PHPUnit_Util_Test';
-        } else {
-            $Test = 'PHPUnit\Util\Test';
-        }
         $suiteName = $suite->getName();
         $this->testsWithWarnings = array();
 
@@ -110,7 +118,7 @@ class SymfonyTestsListenerTrait
             if (!($test instanceof \PHPUnit\Framework\TestCase || $test instanceof TestCase)) {
                 continue;
             }
-            if (null === $Test::getPreserveGlobalStateSettings(\get_class($test), $test->getName(false))) {
+            if (null === Test::getPreserveGlobalStateSettings(\get_class($test), $test->getName(false))) {
                 $test->setPreserveGlobalState(false);
             }
         }
@@ -142,12 +150,12 @@ class SymfonyTestsListenerTrait
             $testSuites = array($suite);
             for ($i = 0; isset($testSuites[$i]); ++$i) {
                 foreach ($testSuites[$i]->tests() as $test) {
-                    if ($test instanceof \PHPUnit_Framework_TestSuite || $test instanceof TestSuite) {
+                    if ($test instanceof TestSuite) {
                         if (!class_exists($test->getName(), false)) {
                             $testSuites[] = $test;
                             continue;
                         }
-                        $groups = $Test::getGroups($test->getName());
+                        $groups = Test::getGroups($test->getName());
                         if (\in_array('time-sensitive', $groups, true)) {
                             ClockMock::register($test->getName());
                         }
@@ -198,14 +206,7 @@ class SymfonyTestsListenerTrait
                 putenv('SYMFONY_DEPRECATIONS_SERIALIZE='.$this->runsInSeparateProcess);
             }
 
-            if (class_exists('PHPUnit_Util_Blacklist', false)) {
-                $Test = 'PHPUnit_Util_Test';
-                $AssertionFailedError = 'PHPUnit_Framework_AssertionFailedError';
-            } else {
-                $Test = 'PHPUnit\Util\Test';
-                $AssertionFailedError = 'PHPUnit\Framework\AssertionFailedError';
-            }
-            $groups = $Test::getGroups(\get_class($test), $test->getName(false));
+            $groups = Test::getGroups(\get_class($test), $test->getName(false));
 
             if (!$this->runsInSeparateProcess) {
                 if (\in_array('time-sensitive', $groups, true)) {
@@ -217,14 +218,14 @@ class SymfonyTestsListenerTrait
                 }
             }
 
-            $annotations = $Test::parseTestMethodAnnotations(\get_class($test), $test->getName(false));
+            $annotations = Test::parseTestMethodAnnotations(\get_class($test), $test->getName(false));
 
             if (isset($annotations['class']['expectedDeprecation'])) {
-                $test->getTestResultObject()->addError($test, new $AssertionFailedError('`@expectedDeprecation` annotations are not allowed at the class level.'), 0);
+                $test->getTestResultObject()->addError($test, new AssertionFailedError('`@expectedDeprecation` annotations are not allowed at the class level.'), 0);
             }
             if (isset($annotations['method']['expectedDeprecation'])) {
                 if (!\in_array('legacy', $groups, true)) {
-                    $this->error = new $AssertionFailedError('Only tests with the `@group legacy` annotation can have `@expectedDeprecation`.');
+                    $this->error = new AssertionFailedError('Only tests with the `@group legacy` annotation can have `@expectedDeprecation`.');
                 }
 
                 $test->getTestResultObject()->beStrictAboutTestsThatDoNotTestAnything(false);
@@ -244,18 +245,8 @@ class SymfonyTestsListenerTrait
 
     public function endTest($test, $time)
     {
-        if (class_exists('PHPUnit_Util_Blacklist', false)) {
-            $Test = 'PHPUnit_Util_Test';
-            $BaseTestRunner = 'PHPUnit_Runner_BaseTestRunner';
-            $Warning = 'PHPUnit_Framework_Warning';
-        } else {
-            $Test = 'PHPUnit\Util\Test';
-            $BaseTestRunner = 'PHPUnit\Runner\BaseTestRunner';
-            $Warning = 'PHPUnit\Framework\Warning';
-        }
         $className = \get_class($test);
-        $classGroups = $Test::getGroups($className);
-        $groups = $Test::getGroups($className, $test->getName(false));
+        $groups = Test::getGroups($className, $test->getName(false));
 
         if (null !== $this->reportUselessTests) {
             $test->getTestResultObject()->beStrictAboutTestsThatDoNotTestAnything($this->reportUselessTests);
@@ -274,7 +265,8 @@ class SymfonyTestsListenerTrait
             foreach ($deprecations ? unserialize($deprecations) : array() as $deprecation) {
                 $error = serialize(array('deprecation' => $deprecation[1], 'class' => $className, 'method' => $test->getName(false), 'triggering_file' => isset($deprecation[2]) ? $deprecation[2] : null));
                 if ($deprecation[0]) {
-                    @trigger_error($error, E_USER_DEPRECATED);
+                    // unsilenced on purpose
+                    trigger_error($error, E_USER_DEPRECATED);
                 } else {
                     @trigger_error($error, E_USER_DEPRECATED);
                 }
@@ -283,19 +275,17 @@ class SymfonyTestsListenerTrait
         }
 
         if ($this->expectedDeprecations) {
-            if (!\in_array($test->getStatus(), array($BaseTestRunner::STATUS_SKIPPED, $BaseTestRunner::STATUS_INCOMPLETE), true)) {
+            if (!\in_array($test->getStatus(), array(BaseTestRunner::STATUS_SKIPPED, BaseTestRunner::STATUS_INCOMPLETE), true)) {
                 $test->addToAssertionCount(\count($this->expectedDeprecations));
             }
 
             restore_error_handler();
 
-            if (!$errored && !\in_array($test->getStatus(), array($BaseTestRunner::STATUS_SKIPPED, $BaseTestRunner::STATUS_INCOMPLETE, $BaseTestRunner::STATUS_FAILURE, $BaseTestRunner::STATUS_ERROR), true)) {
+            if (!$errored && !\in_array($test->getStatus(), array(BaseTestRunner::STATUS_SKIPPED, BaseTestRunner::STATUS_INCOMPLETE, BaseTestRunner::STATUS_FAILURE, BaseTestRunner::STATUS_ERROR), true)) {
                 try {
                     $prefix = "@expectedDeprecation:\n";
                     $test->assertStringMatchesFormat($prefix.'%A  '.implode("\n%A  ", $this->expectedDeprecations)."\n%A", $prefix.'  '.implode("\n  ", $this->gatheredDeprecations)."\n");
                 } catch (AssertionFailedError $e) {
-                    $test->getTestResultObject()->addFailure($test, $e, $time);
-                } catch (\PHPUnit_Framework_AssertionFailedError $e) {
                     $test->getTestResultObject()->addFailure($test, $e, $time);
                 }
             }
